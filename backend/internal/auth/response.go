@@ -6,6 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 type UserResponse struct {
 	ID            uuid.UUID `json:"id"`
 	Username      string    `json:"username"`
@@ -23,10 +27,11 @@ type RegisterResponse struct {
 }
 
 type LoginResponse struct {
-	User  UserResponse `json:"user"`
-	Token string       `json:"token"`
+	User    UserResponse `json:"user"`
+	Token   string       `json:"token"`
+	Session uuid.UUID    `json:"session_id"`
 }
 
-type ErrorResponse struct {
-	Error string `json:"error"`
+type LogoutResponse struct {
+	Message string `json:"message"`
 }

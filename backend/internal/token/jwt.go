@@ -20,15 +20,17 @@ type Manager struct {
 }
 
 type Claims struct {
-	UserID    uuid.UUID `json:"user_id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	IsCreator bool      `json:"is_creator"`
-	IsAdmin   bool      `json:"is_admin"`
+	UserID    uuid.UUID
+	SessionID uuid.UUID
+	Username  string
+	Email     string
+	IsCreator bool
+	IsAdmin   bool
 }
 
 type JWTClaims struct {
 	UserID    string `json:"user_id"`
+	SessionID string `json:"session_id"`
 	Username  string `json:"username"`
 	Email     string `json:"email"`
 	IsCreator bool   `json:"is_creator"`
@@ -65,11 +67,23 @@ func NewManager(
 	}, nil
 }
 
-func (m *Manager) Generate(user *users.User) (string, error) {
+func (m *Manager) Generate(
+	user *users.User,
+	sessionID uuid.UUID,
+) (string, error) {
+	if user == nil {
+		return "", errors.New("user is required")
+	}
+
+	if sessionID == uuid.Nil {
+		return "", errors.New("session id is required")
+	}
+
 	now := time.Now()
 
 	claims := JWTClaims{
 		UserID:    user.ID.String(),
+		SessionID: sessionID.String(),
 		Username:  user.Username,
 		Email:     user.Email,
 		IsCreator: user.IsCreator,
@@ -85,7 +99,10 @@ func (m *Manager) Generate(user *users.User) (string, error) {
 		},
 	}
 
-	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	t := jwt.NewWithClaims(
+		jwt.SigningMethodHS256,
+		claims,
+	)
 
 	signedToken, err := t.SignedString(m.secret)
 	if err != nil {
@@ -95,7 +112,9 @@ func (m *Manager) Generate(user *users.User) (string, error) {
 	return signedToken, nil
 }
 
-func (m *Manager) Validate(tokenString string) (*Claims, error) {
+func (m *Manager) Validate(
+	tokenString string,
+) (*Claims, error) {
 	if tokenString == "" {
 		return nil, ErrInvalidToken
 	}
@@ -118,6 +137,7 @@ func (m *Manager) Validate(tokenString string) (*Claims, error) {
 	}
 
 	jwtClaims, ok := token.Claims.(*JWTClaims)
+
 	if !ok || !token.Valid {
 		return nil, ErrInvalidToken
 	}
@@ -127,8 +147,14 @@ func (m *Manager) Validate(tokenString string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
+	sessionID, err := uuid.Parse(jwtClaims.SessionID)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
 	return &Claims{
 		UserID:    userID,
+		SessionID: sessionID,
 		Username:  jwtClaims.Username,
 		Email:     jwtClaims.Email,
 		IsCreator: jwtClaims.IsCreator,
