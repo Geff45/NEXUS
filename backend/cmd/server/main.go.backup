@@ -1,0 +1,62 @@
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
+
+const (
+	appName    = "NEXUS API"
+	appVersion = "0.1.0"
+	serverAddr = ":8080"
+)
+
+type HealthResponse struct {
+	Status  string `json:"status"`
+	Service string `json:"service"`
+	Version string `json:"version"`
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := HealthResponse{
+		Status:  "ok",
+		Service: "nexus-api",
+		Version: appVersion,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("failed to encode health response: %v", err)
+	}
+}
+
+func main() {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", healthHandler)
+
+	server := &http.Server{
+		Addr:    serverAddr,
+		Handler: mux,
+	}
+
+	log.Println("========================================")
+	log.Printf("             %s", appName)
+	log.Println("========================================")
+	log.Printf("Version : %s", appVersion)
+	log.Printf("Address : http://localhost%s", serverAddr)
+	log.Println("Health  : http://localhost:8080/health")
+	log.Println("========================================")
+	log.Println("NEXUS API starting...")
+
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+}
